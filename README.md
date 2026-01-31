@@ -124,6 +124,9 @@ When you click a button on a permission notification, the plugin:
 # Install dependencies
 bun install
 
+# Run tests
+bun test
+
 # Type check
 bun run typecheck
 
