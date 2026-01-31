@@ -1,0 +1,46 @@
+{
+  "name": "opencode-notify",
+  "version": "0.1.0",
+  "description": "Native OS notifications with actionable buttons for Opencode",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node --external powertoast --external node-dbus-notifier --external detect-terminal --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly",
+    "dev": "bun --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "dependencies": {
+    "detect-terminal": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "node-dbus-notifier": "^1.0.0",
+    "powertoast": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "*",
+    "@opencode-ai/sdk": "*"
+  },
+  "opencode": {
+    "name": "opencode-notify",
+    "displayName": "Opencode Notify",
+    "description": "Native OS notifications with actionable buttons",
+    "entry": "dist/index.js"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "notifications"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "bun-types": "^1.3.8",
+    "typescript": "^5.9.3"
+  }
+}

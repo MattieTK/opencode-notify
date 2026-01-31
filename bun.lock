@@ -1,0 +1,49 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "opencode-notify",
+      "dependencies": {
+        "detect-terminal": "^1.0.0",
+      },
+      "devDependencies": {
+        "bun-types": "^1.3.8",
+        "typescript": "^5.9.3",
+      },
+      "optionalDependencies": {
+        "node-dbus-notifier": "^1.0.0",
+        "powertoast": "^3.0.0",
+      },
+      "peerDependencies": {
+        "@opencode-ai/plugin": "*",
+        "@opencode-ai/sdk": "*",
+      },
+    },
+  },
+  "packages": {
+    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.48", "", { "dependencies": { "@opencode-ai/sdk": "1.1.48", "zod": "4.1.8" } }, "sha512-KkaSMevXmz7tOwYDMJeWiXE5N8LmRP18qWI5Xhv3+c+FdGPL+l1hQrjSgyv3k7Co7qpCyW3kAUESBB7BzIOl2w=="],
+
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.48", "", {}, "sha512-j5/79X45fUPWVD2Ffm/qvwLclDCdPeV+TYMDrm9to0p4pmzhmeKevCsyiRdLg0o0HE3AFRUnOo2rdO9NetN79A=="],
+
+    "@types/node": ["@types/node@25.1.0", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-t7frlewr6+cbx+9Ohpl0NOTKXZNV9xHRmNOvql47BFJKcEG1CxtxlPEEe+gR9uhVWM4DwhnvTF110mIL4yP9RA=="],
+
+    "@xan105/error": ["@xan105/error@1.7.1", "", {}, "sha512-FYIUYijbmg62L9QQ5BsR14DuZatAJJvwo10yzuEDEsu8L0FAa4DZivWFAf66nYjEiSz50SFGtMxWSyG+y/ZGGw=="],
+
+    "@xan105/fs": ["@xan105/fs@2.3.0", "", { "dependencies": { "@xan105/error": "^1.7.1", "@xan105/is": "^2.10.1" } }, "sha512-9ibTdG8ZFYBn6rdBL3Dq+BikN2V1zxNXRGxWUUsBzA/zXazPSrEs4bURzURv5m6z+o6VzbKEu+prtLefJTntDQ=="],
+
+    "@xan105/is": ["@xan105/is@2.10.1", "", { "dependencies": { "@xan105/error": "^1.7.1" } }, "sha512-FKgDE2tSyJwvf+zIeAsN/f8l94CYhhu5LtkLhv/gYX1i5DnfGdCys0N+mxxTb1qMhWPw+ekHGcwflv0x8ATPJQ=="],
+
+    "bun-types": ["bun-types@1.3.8", "", { "dependencies": { "@types/node": "*" } }, "sha512-fL99nxdOWvV4LqjmC+8Q9kW3M4QTtTR1eePs94v5ctGqU8OeceWrSUaRw3JYb7tU3FkMIAjkueehrHPPPGKi5Q=="],
+
+    "detect-terminal": ["detect-terminal@1.1.2", "", {}, "sha512-mLB+qvOc9VYO0VqLNbqcLjb9R9AvbWQyk9n8qx0aryoykE4ALX0FNp/eP8GE2RxppYBofsoKxfJ3L15X2/rJ8Q=="],
+
+    "powertoast": ["powertoast@3.0.0", "", { "dependencies": { "@xan105/error": "^1.7.0", "@xan105/fs": "^2.2.1", "@xan105/is": "^2.9.3" }, "peerDependencies": { "@nodert-win10-19h1/windows.data.xml.dom": "^0.1.6", "@nodert-win10-19h1/windows.foundation": "^0.1.6", "@nodert-win10-19h1/windows.foundation.collections": "^0.1.6", "@nodert-win10-19h1/windows.ui.notifications": "^0.1.6", "@nodert-win10-20h1/windows.data.xml.dom": "^0.1.0", "@nodert-win10-20h1/windows.foundation": "^0.1.0", "@nodert-win10-20h1/windows.foundation.collections": "^0.1.0", "@nodert-win10-20h1/windows.ui.notifications": "^0.1.0", "@nodert-win10-21h1/windows.data.xml.dom": "^0.1.6", "@nodert-win10-21h1/windows.foundation": "^0.1.6", "@nodert-win10-21h1/windows.foundation.collections": "^0.1.6", "@nodert-win10-21h1/windows.ui.notifications": "^0.1.6", "@nodert-win10-au/windows.data.xml.dom": "^0.4.4", "@nodert-win10-au/windows.foundation": "^0.4.4", "@nodert-win10-au/windows.foundation.collections": "^0.4.4", "@nodert-win10-au/windows.ui.notifications": "^0.4.4", "@nodert-win10-cu/windows.data.xml.dom": "^0.4.4", "@nodert-win10-cu/windows.foundation": "^0.4.4", "@nodert-win10-cu/windows.foundation.collections": "^0.4.4", "@nodert-win10-cu/windows.ui.notifications": "^0.4.4", "@nodert-win10-rs3/windows.data.xml.dom": "^0.4.4", "@nodert-win10-rs3/windows.foundation": "^0.4.4", "@nodert-win10-rs3/windows.foundation.collections": "^0.4.4", "@nodert-win10-rs3/windows.ui.notifications": "^0.4.4", "@nodert-win10-rs4/windows.data.xml.dom": "^0.4.4", "@nodert-win10-rs4/windows.foundation": "^0.4.4", "@nodert-win10-rs4/windows.foundation.collections": "^0.4.4", "@nodert-win10-rs4/windows.ui.notifications": "^0.4.4", "@nodert-win10/windows.data.xml.dom": "^0.2.96", "@nodert-win10/windows.foundation": "^0.2.96", "@nodert-win10/windows.foundation.collections": "^0.2.96", "@nodert-win10/windows.ui.notifications": "^0.2.96", "@nodert-win11-22h2/windows.data.xml.dom": "^0.1.6", "@nodert-win11-22h2/windows.foundation": "^0.1.6", "@nodert-win11-22h2/windows.foundation.collections": "^0.1.6", "@nodert-win11-22h2/windows.ui.notifications": "^0.1.6", "@nodert-win11/windows.data.xml.dom": "^0.1.6", "@nodert-win11/windows.foundation": "^0.1.6", "@nodert-win11/windows.foundation.collections": "^0.1.6", "@nodert-win11/windows.ui.notifications": "^0.1.6", "@xan105/nodert": "^2.0.0" }, "optionalPeers": ["@nodert-win10-19h1/windows.data.xml.dom", "@nodert-win10-19h1/windows.foundation", "@nodert-win10-19h1/windows.foundation.collections", "@nodert-win10-19h1/windows.ui.notifications", "@nodert-win10-20h1/windows.data.xml.dom", "@nodert-win10-20h1/windows.foundation", "@nodert-win10-20h1/windows.foundation.collections", "@nodert-win10-20h1/windows.ui.notifications", "@nodert-win10-21h1/windows.data.xml.dom", "@nodert-win10-21h1/windows.foundation", "@nodert-win10-21h1/windows.foundation.collections", "@nodert-win10-21h1/windows.ui.notifications", "@nodert-win10-au/windows.data.xml.dom", "@nodert-win10-au/windows.foundation", "@nodert-win10-au/windows.foundation.collections", "@nodert-win10-au/windows.ui.notifications", "@nodert-win10-cu/windows.data.xml.dom", "@nodert-win10-cu/windows.foundation", "@nodert-win10-cu/windows.foundation.collections", "@nodert-win10-cu/windows.ui.notifications", "@nodert-win10-rs3/windows.data.xml.dom", "@nodert-win10-rs3/windows.foundation", "@nodert-win10-rs3/windows.foundation.collections", "@nodert-win10-rs3/windows.ui.notifications", "@nodert-win10-rs4/windows.data.xml.dom", "@nodert-win10-rs4/windows.foundation", "@nodert-win10-rs4/windows.foundation.collections", "@nodert-win10-rs4/windows.ui.notifications", "@nodert-win10/windows.data.xml.dom", "@nodert-win10/windows.foundation", "@nodert-win10/windows.foundation.collections", "@nodert-win10/windows.ui.notifications", "@nodert-win11-22h2/windows.data.xml.dom", "@nodert-win11-22h2/windows.foundation", "@nodert-win11-22h2/windows.foundation.collections", "@nodert-win11-22h2/windows.ui.notifications", "@nodert-win11/windows.data.xml.dom", "@nodert-win11/windows.foundation", "@nodert-win11/windows.foundation.collections", "@nodert-win11/windows.ui.notifications", "@xan105/nodert"] }, "sha512-nlGnBkMchJS6P4uQgjROpzHs72WqgB6cYP7hDFACXOZUSu2lXgDqJ5fKt2B/53jO+UynVlbhAQHHQvSOLUAUmQ=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+
+    "zod": ["zod@4.1.8", "", {}, "sha512-5R1P+WwQqmmMIEACyzSvo4JXHY5WiAFHRMg+zBZKgKS+Q1viRa0C1hmUKtHltoIFKtIdki3pRxkmpP74jnNYHQ=="],
+  }
+}
