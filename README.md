@@ -14,10 +14,16 @@ System popups with actionable buttons for Opencode. When Opencode needs permissi
 
 ## Installation
 
-```bash
-# Install the plugin
-opencode plugin add opencode-notify
+Add the plugin to your Opencode configuration file (`~/.config/opencode/config.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["opencode-notify"]
+}
 ```
+
+The plugin is installed automatically via Bun at startup.
 
 ### Platform Dependencies
 
