@@ -1,16 +1,16 @@
 # opencode-notify
 
-Native OS notifications with actionable buttons for Opencode. When Opencode needs permission or has a question, you'll receive a notification you can respond to directly – no need to switch back to the terminal.
+System popups with actionable buttons for Opencode. When Opencode needs permission or has a question, you'll receive a popup you can respond to directly – no need to switch back to the terminal.
 
 ## Features
 
-- **Actionable buttons** – Accept, Always, Reject, or Dismiss permission requests directly from notifications
+- **Actionable buttons** – Accept, Always, Reject, or Dismiss permission requests directly from popups
 - **Cross-platform** – Works on macOS (no dependencies), Linux, and Windows
-- **Terminal focus detection** – Suppresses notifications when your terminal is already focused
-- **Quiet hours** – Optionally silence notifications during specified times
+- **Terminal focus detection** – Suppresses popups when your terminal is already focused
+- **Quiet hours** – Optionally silence alerts during specified times
 - **Child session control** – Choose whether to notify for subagent sessions
-- **Auto-focus** – Optionally focus your terminal after responding to a notification
-- **Idle notifications** – Optionally notify when the agent stops without requesting input
+- **Auto-focus** – Optionally focus your terminal after responding to a popup
+- **Idle alerts** – Optionally alert when the agent stops without requesting input
 
 ## Installation
 
@@ -23,7 +23,7 @@ opencode plugin add opencode-notify
 
 #### macOS
 
-No additional dependencies. The plugin bundles a native Swift app that uses CFUserNotification for alert dialogs.
+No additional dependencies. The plugin bundles a Swift app that uses CFUserNotification to display alert dialogs with action buttons.
 
 #### Linux
 
@@ -76,7 +76,7 @@ Create `~/.config/opencode/opencode-notify.json`:
 | `quietHours.end` | string | `"08:00"` | Quiet hours end (HH:MM) |
 | `notifyChildSessions` | boolean | `false` | Notify for subagent sessions |
 | `terminal` | string \| null | `null` | Override terminal detection |
-| `focusAfterAction` | boolean | `true` | Focus terminal after responding to a notification |
+| `focusAfterAction` | boolean | `true` | Focus terminal after responding to a popup |
 | `notifyOnIdle` | boolean | `false` | Notify when the agent stops without requesting input |
 
 ### Terminal Detection
@@ -98,12 +98,12 @@ Set `terminal` in config to override if detection fails.
 
 The plugin hooks into Opencode events:
 
-1. **Permission requests** → Shows notification with Accept/Always/Reject/Dismiss buttons
-2. **Questions** → Notifies when Opencode asks a question (AskUserQuestion tool) with View/Dismiss buttons
-3. **Session errors** → Notifies of errors
-4. **Session idle** → Optionally notifies when the agent stops without requesting input (disabled by default, enable with `notifyOnIdle`). Only fires once per idle period – resets when the agent becomes active again.
+1. **Permission requests** → Shows popup with Accept/Always/Reject/Dismiss buttons
+2. **Questions** → Shows popup when Opencode asks a question (AskUserQuestion tool) with View/Dismiss buttons
+3. **Session errors** → Shows error popup
+4. **Session idle** → Optionally shows popup when the agent stops without requesting input (disabled by default, enable with `notifyOnIdle`). Only fires once per idle period – resets when the agent becomes active again.
 
-When you click a button on a permission notification, the plugin:
+When you click a button on a permission popup, the plugin:
 1. Sends your response to Opencode via its API
 2. Focuses your terminal window (if `focusAfterAction` is enabled)
 

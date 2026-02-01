@@ -1,7 +1,7 @@
 {
   "name": "opencode-notify",
-  "version": "0.2.0",
-  "description": "Native OS notifications with actionable buttons for Opencode",
+  "version": "0.2.1",
+  "description": "System popups with actionable buttons for Opencode",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
