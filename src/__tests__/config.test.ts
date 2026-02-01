@@ -3,10 +3,12 @@ import { isQuietHours, type Config } from "../config";
 
 describe("isQuietHours", () => {
   const baseConfig: Config = {
-    sounds: { permission: "Submarine", complete: "Glass", error: "Basso" },
+    sounds: { permission: "Submarine", error: "Basso" },
     quietHours: { enabled: false, start: "22:00", end: "08:00" },
     notifyChildSessions: false,
     terminal: null,
+    focusAfterAction: true,
+    notifyOnIdle: false,
   };
 
   test("returns false when quiet hours disabled", () => {

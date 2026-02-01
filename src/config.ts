@@ -4,7 +4,6 @@ import { join } from "node:path";
 
 export interface SoundConfig {
   permission: string;
-  complete: string;
   error: string;
 }
 
@@ -19,12 +18,13 @@ export interface Config {
   quietHours: QuietHoursConfig;
   notifyChildSessions: boolean;
   terminal: string | null;
+  focusAfterAction: boolean;
+  notifyOnIdle: boolean;
 }
 
 const DEFAULT_CONFIG: Config = {
   sounds: {
     permission: "Submarine",
-    complete: "Glass",
     error: "Basso",
   },
   quietHours: {
@@ -34,6 +34,8 @@ const DEFAULT_CONFIG: Config = {
   },
   notifyChildSessions: false,
   terminal: null,
+  focusAfterAction: true,
+  notifyOnIdle: false,
 };
 
 function getConfigPath(): string {

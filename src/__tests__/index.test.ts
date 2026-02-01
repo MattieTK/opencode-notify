@@ -1,79 +1,170 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import opencodeNotifyPlugin from "../index";
+import type { PluginInput } from "@opencode-ai/plugin";
+
+// Minimal mock for PluginInput
+function createMockInput(overrides?: Partial<PluginInput>): PluginInput {
+  return {
+    client: {} as PluginInput["client"],
+    project: {} as PluginInput["project"],
+    directory: "/test",
+    worktree: "/test",
+    serverUrl: new URL("http://localhost:3000"),
+    $: {} as PluginInput["$"],
+    ...overrides,
+  };
+}
 
 describe("opencodeNotifyPlugin", () => {
-  test("registers event handlers on context", () => {
-    const handlers: Record<string, (data: unknown) => void> = {};
+  test("returns hooks object with event handler", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
 
-    const mockContext = {
-      on: mock((event: string, handler: (data: unknown) => void) => {
-        handlers[event] = handler;
-      }),
-      getApiBaseUrl: () => "http://localhost:3000",
-    };
-
-    opencodeNotifyPlugin(mockContext);
-
-    // Verify all expected events are registered
-    expect(mockContext.on).toHaveBeenCalledTimes(4);
-
-    const registeredEvents = mockContext.on.mock.calls.map((call) => call[0]);
-    expect(registeredEvents).toContain("permission.updated");
-    expect(registeredEvents).toContain("session.idle");
-    expect(registeredEvents).toContain("session.error");
-    expect(registeredEvents).toContain("tool.execute.before");
+    expect(hooks).toBeDefined();
+    expect(typeof hooks.event).toBe("function");
+    expect(typeof hooks["tool.execute.before"]).toBe("function");
   });
 
-  test("works without getApiBaseUrl method", () => {
-    const mockContext = {
-      on: mock(() => {}),
-    };
+  test("event handler processes permission.updated events", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
 
-    // Should not throw
-    expect(() => opencodeNotifyPlugin(mockContext)).not.toThrow();
+    // Should not throw when processing permission event
+    await expect(
+      hooks.event?.({
+        event: {
+          type: "permission.updated",
+          properties: {
+            id: "test-id",
+            type: "Bash",
+            title: "Run command",
+            sessionID: "session-1",
+            messageID: "msg-1",
+            metadata: {},
+            time: { created: Date.now() },
+          },
+        },
+      })
+    ).resolves.toBeUndefined();
   });
 
-  test("tool.execute.before handler ignores non-question tools", async () => {
-    let toolHandler: ((data: unknown) => void) | null = null;
+  test("event handler processes session.idle events", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
 
-    const mockContext = {
-      on: mock((event: string, handler: (data: unknown) => void) => {
-        if (event === "tool.execute.before") {
-          toolHandler = handler;
-        }
-      }),
+    await expect(
+      hooks.event?.({
+        event: {
+          type: "session.idle",
+          properties: {
+            sessionID: "session-1",
+          },
+        },
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  test("event handler processes session.error events", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
+
+    await expect(
+      hooks.event?.({
+        event: {
+          type: "session.error",
+          properties: {
+            sessionID: "session-1",
+            error: {
+              name: "UnknownError" as const,
+              data: { message: "Something went wrong" },
+            },
+          },
+        },
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  test("tool.execute.before hook ignores non-question tools", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
+
+    // Should not throw when processing non-question tool
+    await expect(
+      hooks["tool.execute.before"]?.(
+        { tool: "Bash", sessionID: "session-1", callID: "call-1" },
+        { args: {} }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  test("tool.execute.before hook processes AskUserQuestion", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
+
+    await expect(
+      hooks["tool.execute.before"]?.(
+        { tool: "AskUserQuestion", sessionID: "session-1", callID: "call-1" },
+        { args: { question: "What should I do?" } }
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  test("event handler detects AskUserQuestion in message.updated", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
+
+    // Minimal mock event - actual structure has more fields but we only need these for the test
+    const mockEvent = {
+      type: "message.updated",
+      properties: {
+        info: {
+          id: "msg-1",
+          role: "assistant",
+          sessionID: "session-1",
+          time: { created: Date.now() },
+          parts: [
+            {
+              id: "part-1",
+              type: "tool",
+              tool: "AskUserQuestion",
+              state: { status: "pending" },
+              input: {
+                questions: [{ question: "What should I do?" }],
+              },
+            },
+          ],
+        },
+      },
     };
 
-    opencodeNotifyPlugin(mockContext);
-
-    // Call the handler with a non-question tool
-    // Should not throw or do anything observable
-    expect(() => {
-      toolHandler?.({ tool: "Bash", args: {} });
-    }).not.toThrow();
+    await expect(
+      hooks.event?.({ event: mockEvent as unknown as Parameters<NonNullable<typeof hooks.event>>[0]["event"] })
+    ).resolves.toBeUndefined();
   });
 });
 
-describe("shouldSuppress helper", () => {
-  // Test indirectly through plugin behavior
-  test("child sessions are suppressed by default", () => {
-    const handlers: Record<string, (data: unknown) => void> = {};
+describe("event type filtering", () => {
+  test("ignores unhandled event types", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
 
-    const mockContext = {
-      on: mock((event: string, handler: (data: unknown) => void) => {
-        handlers[event] = handler;
-      }),
-    };
-
-    opencodeNotifyPlugin(mockContext);
-
-    // Verify session.idle handler was registered
-    expect(handlers["session.idle"]).toBeDefined();
-
-    // Call with child session - should not throw
-    // (notification would be suppressed due to isChildSession: true)
-    expect(() => {
-      handlers["session.idle"]({ message: "Done", isChildSession: true });
-    }).not.toThrow();
+    // Should not throw for unhandled event types
+    await expect(
+      hooks.event?.({
+        event: {
+          type: "session.created",
+          properties: {
+            info: {
+              id: "session-1",
+              projectID: "proj-1",
+              directory: "/test",
+              title: "Test",
+              version: "1",
+              time: { created: Date.now(), updated: Date.now() },
+            },
+          },
+        },
+      })
+    ).resolves.toBeUndefined();
   });
 });

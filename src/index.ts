@@ -1,34 +1,8 @@
+import type { Plugin } from "@opencode-ai/plugin";
 import { loadConfig, isQuietHours, type Config } from "./config";
 import { detectTerminal, isTerminalFocused, focusTerminal } from "./terminal";
 import { NotificationDispatcher, type NotificationAction } from "./notify";
 import { replyToPermission } from "./permission";
-
-interface PluginContext {
-  on(event: string, handler: (data: unknown) => void): void;
-  getApiBaseUrl?(): string;
-}
-
-interface PermissionEvent {
-  requestId: string;
-  tool: string;
-  command?: string;
-  description?: string;
-  isChildSession?: boolean;
-}
-
-interface SessionEvent {
-  message?: string;
-  error?: string;
-  isChildSession?: boolean;
-}
-
-interface ToolEvent {
-  tool: string;
-  args?: {
-    question?: string;
-  };
-  isChildSession?: boolean;
-}
 
 /**
  * Opencode Notify Plugin
@@ -36,108 +10,439 @@ interface ToolEvent {
  * Provides native OS notifications with actionable buttons
  * when Opencode needs user input.
  */
-export default function opencodeNotifyPlugin(context: PluginContext): void {
+export const opencodeNotifyPlugin: Plugin = async ({ serverUrl }) => {
   const config = loadConfig();
   const terminal = detectTerminal(config.terminal);
   const dispatcher = new NotificationDispatcher();
 
+  // Track tool calls we've already shown notifications for
+  const notifiedToolCalls = new Set<string>();
+
+  // Only show one notification at a time - user will focus app after first one
+  let isShowingNotification = false;
+
+  // Track whether we've already notified for idle state (reset when agent becomes active)
+  let hasNotifiedIdle = false;
+
   // Initialise the notification backend
-  dispatcher.initialise().then((available) => {
-    if (!available) {
-      console.warn(
-        "[opencode-notify] No notification backend available. " +
-          "Install alerter (macOS), ensure D-Bus is available (Linux), " +
-          "or install powertoast (Windows)."
-      );
-    }
-  });
-
-  const apiBaseUrl = context.getApiBaseUrl?.() ?? "http://localhost:3000";
-
-  // Permission requests – show notification with Accept/Always/Reject
-  context.on("permission.updated", async (data: unknown) => {
-    const event = data as PermissionEvent;
-
-    if (shouldSuppress(config, event.isChildSession)) {
-      return;
-    }
-
-    if (isTerminalFocused(terminal)) {
-      return;
-    }
-
-    const command = event.command ?? event.description ?? "Permission requested";
-    const result = await dispatcher.showPermissionRequest(
-      event.tool,
-      command,
-      config.sounds.permission
+  const available = await dispatcher.initialise();
+  if (!available) {
+    console.warn(
+      "[opencode-notify] No notification backend available for this platform."
     );
+  }
 
-    if (result.activated) {
-      const sent = await replyToPermission(
-        event.requestId,
-        result.action as NotificationAction,
-        apiBaseUrl
-      );
+  const apiBaseUrl = serverUrl.toString().replace(/\/$/, "");
+  console.log(`[opencode-notify] Initialised, API base URL: ${apiBaseUrl}`);
 
-      if (sent) {
-        focusTerminal(terminal);
+  return {
+    // Handle events from the opencode event stream
+    event: async ({ event }) => {
+      const eventType = event.type as string;
+
+      // Handle permission.asked (not in SDK types yet)
+      if (eventType === "permission.asked") {
+        // Agent is active, reset idle notification state
+        hasNotifiedIdle = false;
+
+        const props = event.properties as {
+          id?: string;
+          sessionID?: string;
+          permission?: string;
+          patterns?: string[];
+          metadata?: Record<string, unknown>;
+        };
+
+        console.log(`[opencode-notify] permission.asked: id=${props.id}, permission=${props.permission}, patterns=${props.patterns?.join(", ")}`);
+
+        if (shouldSuppress(config, false)) {
+          console.log(`[opencode-notify] Suppressed by config`);
+          return;
+        }
+
+        if (isTerminalFocused(terminal)) {
+          console.log(`[opencode-notify] Terminal is focused, skipping`);
+          return;
+        }
+
+        if (isShowingNotification) {
+          console.log(`[opencode-notify] Already showing a notification, skipping`);
+          return;
+        }
+
+        // Build descriptive notification text
+        const permissionType = props.permission ?? "Permission";
+        const patterns = props.patterns?.join(", ") ?? "";
+        const message = patterns || "Permission requested";
+
+        console.log(`[opencode-notify] Showing permission notification: ${permissionType} - ${message}`);
+        isShowingNotification = true;
+
+        try {
+          const result = await dispatcher.showPermissionRequest(
+            permissionType,
+            message,
+            config.sounds.permission,
+            terminal.bundleId
+          );
+
+          console.log(`[opencode-notify] Permission result: action=${result.action}, activated=${result.activated}`);
+
+          // Send reply for any action (accept, always, reject) - not just activated ones
+          const action = result.action.toLowerCase();
+          if (props.id && props.sessionID && (action === "accept" || action === "always" || action === "reject")) {
+            const sent = await replyToPermission(
+              props.sessionID,
+              props.id,
+              result.action as NotificationAction,
+              apiBaseUrl
+            );
+
+            console.log(`[opencode-notify] Permission reply sent: ${sent}`);
+
+            // Focus terminal if config allows and action was approved
+            if (sent && result.activated && config.focusAfterAction) {
+              focusTerminal(terminal);
+            }
+          }
+        } finally {
+          isShowingNotification = false;
+        }
+        return;
       }
-    }
-  });
 
-  // Session idle – notify that Opencode is waiting
-  context.on("session.idle", async (data: unknown) => {
-    const event = data as SessionEvent;
+      switch (event.type) {
+        case "message.part.updated": {
+          // Agent is active, reset idle notification state
+          hasNotifiedIdle = false;
 
-    if (shouldSuppress(config, event.isChildSession)) {
-      return;
-    }
+          // Tool call parts come through this event
+          const props = event.properties as {
+            part?: {
+              id?: string;
+              type?: string;
+              tool?: string;
+              state?: { status?: string };
+              input?: { questions?: Array<{ question?: string }> };
+            };
+          };
 
-    if (isTerminalFocused(terminal)) {
-      return;
-    }
+          const part = props.part;
 
-    const message = event.message ?? "Session complete";
-    await dispatcher.showSessionComplete(message, config.sounds.complete);
-  });
+          if (
+            part?.type === "tool" &&
+            part?.tool?.toLowerCase() === "askuserquestion" &&
+            part?.state?.status === "pending"
+          ) {
+            const callId = part.id ?? `part-AskUserQuestion-${Date.now()}`;
+            if (notifiedToolCalls.has(callId)) {
+              console.log(`[opencode-notify] Already notified for question: ${callId}`);
+              return;
+            }
+            notifiedToolCalls.add(callId);
 
-  // Session error – notify of errors
-  context.on("session.error", async (data: unknown) => {
-    const event = data as SessionEvent;
+            console.log(`[opencode-notify] message.part.updated: AskUserQuestion detected, id=${callId}`);
 
-    if (shouldSuppress(config, event.isChildSession)) {
-      return;
-    }
+            if (shouldSuppress(config, false)) {
+              console.log(`[opencode-notify] Suppressed by config`);
+              return;
+            }
 
-    if (isTerminalFocused(terminal)) {
-      return;
-    }
+            if (isTerminalFocused(terminal)) {
+              console.log(`[opencode-notify] Terminal is focused, skipping`);
+              return;
+            }
 
-    const message = event.error ?? "An error occurred";
-    await dispatcher.showError(message, config.sounds.error);
-  });
+            if (isShowingNotification) {
+              console.log(`[opencode-notify] Already showing a notification, skipping`);
+              return;
+            }
 
-  // AskUserQuestion tool – notify when Opencode asks a question
-  context.on("tool.execute.before", async (data: unknown) => {
-    const event = data as ToolEvent;
+            const firstQuestion = part.input?.questions?.[0]?.question;
+            const message = firstQuestion ?? "Opencode has a question for you";
 
-    if (event.tool !== "AskUserQuestion") {
-      return;
-    }
+            console.log(`[opencode-notify] Showing question notification: ${message.slice(0, 50)}...`);
+            isShowingNotification = true;
 
-    if (shouldSuppress(config, event.isChildSession)) {
-      return;
-    }
+            try {
+              const result = await dispatcher.showQuestion(
+                message,
+                config.sounds.permission,
+                terminal.bundleId
+              );
 
-    if (isTerminalFocused(terminal)) {
-      return;
-    }
+              console.log(`[opencode-notify] Question result: action=${result.action}, activated=${result.activated}`);
 
-    const question = event.args?.question ?? "Opencode has a question for you";
-    await dispatcher.showQuestion(question, config.sounds.permission);
-  });
-}
+              // Focus terminal if config allows and action was not dismiss
+              if (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss") {
+                focusTerminal(terminal);
+              }
+            } finally {
+              isShowingNotification = false;
+            }
+          }
+          break;
+        }
+
+        case "message.updated": {
+          // Agent is active, reset idle notification state
+          hasNotifiedIdle = false;
+
+          // Check for AskUserQuestion tool calls in assistant messages
+          const info = event.properties.info;
+
+          if (info.role !== "assistant") {
+            return;
+          }
+
+          // Look for pending AskUserQuestion tool calls
+          const parts = (info as { parts?: unknown[] }).parts;
+
+          if (!Array.isArray(parts) || parts.length === 0) {
+            return;
+          }
+
+          for (const part of parts) {
+            const p = part as {
+              type?: string;
+              tool?: string;
+              state?: { status?: string };
+              input?: { questions?: Array<{ question?: string }> };
+              id?: string;
+            };
+
+            if (
+              p.type === "tool" &&
+              p.tool?.toLowerCase() === "askuserquestion" &&
+              p.state?.status === "pending"
+            ) {
+              // Avoid duplicate notifications for the same tool call
+              const callId = p.id ?? `${info.id}-AskUserQuestion`;
+              if (notifiedToolCalls.has(callId)) {
+                console.log(`[opencode-notify] Already notified for question: ${callId}`);
+                return;
+              }
+              notifiedToolCalls.add(callId);
+
+              console.log(`[opencode-notify] message.updated: AskUserQuestion detected, id=${callId}`);
+
+              if (shouldSuppress(config, false)) {
+                console.log(`[opencode-notify] Suppressed by config`);
+                return;
+              }
+
+              if (isTerminalFocused(terminal)) {
+                console.log(`[opencode-notify] Terminal is focused, skipping`);
+                return;
+              }
+
+              if (isShowingNotification) {
+                console.log(`[opencode-notify] Already showing a notification, skipping`);
+                return;
+              }
+
+              const firstQuestion = p.input?.questions?.[0]?.question;
+              const message = firstQuestion ?? "Opencode has a question for you";
+
+              console.log(`[opencode-notify] Showing question notification: ${message.slice(0, 50)}...`);
+              isShowingNotification = true;
+
+              try {
+                const result = await dispatcher.showQuestion(
+                  message,
+                  config.sounds.permission,
+                  terminal.bundleId
+                );
+
+                console.log(`[opencode-notify] Question result: action=${result.action}, activated=${result.activated}`);
+
+                // Focus terminal if config allows and action was not dismiss
+                if (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss") {
+                  focusTerminal(terminal);
+                }
+              } finally {
+                isShowingNotification = false;
+              }
+              return;
+            }
+          }
+          break;
+        }
+
+        case "permission.updated": {
+          // Agent is active, reset idle notification state
+          hasNotifiedIdle = false;
+
+          // Also handled above for permission.asked
+          const props = event.properties;
+
+          console.log(`[opencode-notify] permission.updated: id=${props.id}, type=${props.type}`);
+
+          if (shouldSuppress(config, false)) {
+            console.log(`[opencode-notify] Suppressed by config`);
+            return;
+          }
+
+          if (isTerminalFocused(terminal)) {
+            console.log(`[opencode-notify] Terminal is focused, skipping`);
+            return;
+          }
+
+          if (isShowingNotification) {
+            console.log(`[opencode-notify] Already showing a notification, skipping`);
+            return;
+          }
+
+          const command = props.title ?? "Permission requested";
+          console.log(`[opencode-notify] Showing permission.updated notification: ${props.type} - ${command}`);
+          isShowingNotification = true;
+
+          try {
+            const result = await dispatcher.showPermissionRequest(
+              props.type,
+              command,
+              config.sounds.permission,
+              terminal.bundleId
+            );
+
+            console.log(`[opencode-notify] Permission result: action=${result.action}, activated=${result.activated}`);
+
+            const action = result.action.toLowerCase();
+            if (props.sessionID && props.id && (action === "accept" || action === "always" || action === "reject")) {
+              const sent = await replyToPermission(
+                props.sessionID,
+                props.id,
+                result.action as NotificationAction,
+                apiBaseUrl
+              );
+
+              console.log(`[opencode-notify] Permission reply sent: ${sent}`);
+
+              // Focus terminal if config allows and action was approved
+              if (sent && result.activated && config.focusAfterAction) {
+                focusTerminal(terminal);
+              }
+            }
+          } finally {
+            isShowingNotification = false;
+          }
+          break;
+        }
+
+        case "session.error": {
+          const props = event.properties;
+
+          if (shouldSuppress(config, false)) {
+            return;
+          }
+
+          if (isTerminalFocused(terminal)) {
+            return;
+          }
+
+          // Extract message from the error union type
+          const errorData = props.error?.data as { message?: string } | undefined;
+          const message = errorData?.message ?? "An error occurred";
+          await dispatcher.showError(
+            message,
+            config.sounds.error,
+            terminal.bundleId
+          );
+          break;
+        }
+
+        case "session.idle": {
+          if (!config.notifyOnIdle) {
+            return;
+          }
+
+          if (hasNotifiedIdle) {
+            return;
+          }
+
+          if (shouldSuppress(config, false)) {
+            return;
+          }
+
+          if (isTerminalFocused(terminal)) {
+            return;
+          }
+
+          hasNotifiedIdle = true;
+          await dispatcher.showSessionComplete(
+            "Agent has stopped and is waiting for input",
+            config.sounds.permission,
+            terminal.bundleId
+          );
+          break;
+        }
+      }
+    },
+
+    // Handle AskUserQuestion tool calls (fallback if message.part.updated doesn't trigger)
+    "tool.execute.before": async (input, output) => {
+      // Agent is active, reset idle notification state
+      hasNotifiedIdle = false;
+
+      if (input.tool.toLowerCase() !== "askuserquestion") {
+        return;
+      }
+
+      const callId = input.callID ?? `tool-${Date.now()}`;
+      console.log(`[opencode-notify] tool.execute.before: AskUserQuestion, callID=${callId}`);
+
+      // Check if already notified
+      if (notifiedToolCalls.has(callId)) {
+        console.log(`[opencode-notify] Already notified for question: ${callId}`);
+        return;
+      }
+      notifiedToolCalls.add(callId);
+
+      if (shouldSuppress(config, false)) {
+        console.log(`[opencode-notify] Suppressed by config`);
+        return;
+      }
+
+      if (isTerminalFocused(terminal)) {
+        console.log(`[opencode-notify] Terminal is focused, skipping`);
+        return;
+      }
+
+      if (isShowingNotification) {
+        console.log(`[opencode-notify] Already showing a notification, skipping`);
+        return;
+      }
+
+      // Extract question text from tool arguments
+      const args = output.args as {
+        questions?: Array<{ question?: string }>;
+      } | undefined;
+
+      const firstQuestion = args?.questions?.[0]?.question;
+      const message = firstQuestion ?? "Opencode has a question for you";
+
+      console.log(`[opencode-notify] Showing question notification (tool.execute.before): ${message.slice(0, 50)}...`);
+      isShowingNotification = true;
+
+      try {
+        const result = await dispatcher.showQuestion(
+          message,
+          config.sounds.permission,
+          terminal.bundleId
+        );
+
+        console.log(`[opencode-notify] Question result: action=${result.action}, activated=${result.activated}`);
+
+        // Focus terminal if config allows and action was not dismiss
+        if (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss") {
+          focusTerminal(terminal);
+        }
+      } finally {
+        isShowingNotification = false;
+      }
+    },
+  };
+};
 
 function shouldSuppress(config: Config, isChildSession?: boolean): boolean {
   // Suppress during quiet hours
@@ -152,6 +457,9 @@ function shouldSuppress(config: Config, isChildSession?: boolean): boolean {
 
   return false;
 }
+
+// Default export for opencode plugin loading
+export default opencodeNotifyPlugin;
 
 // Export types for consumers
 export type { Config } from "./config";

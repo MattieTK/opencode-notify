@@ -150,7 +150,8 @@ export function isTerminalFocused(terminal: TerminalInfo): boolean {
   const platform = process.platform;
 
   if (platform === "darwin") {
-    return isMacOSAppFocused(terminal.bundleId ?? terminal.processName);
+    // AppleScript returns process name, not bundle ID
+    return isMacOSAppFocused(terminal.processName ?? terminal.app);
   }
 
   if (platform === "linux") {
@@ -165,7 +166,9 @@ export function isTerminalFocused(terminal: TerminalInfo): boolean {
 }
 
 function isMacOSAppFocused(bundleIdOrName?: string): boolean {
-  if (!bundleIdOrName) return false;
+  if (!bundleIdOrName) {
+    return false;
+  }
 
   try {
     const script = `

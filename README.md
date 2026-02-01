@@ -4,11 +4,13 @@ Native OS notifications with actionable buttons for Opencode. When Opencode need
 
 ## Features
 
-- **Actionable buttons** – Accept, Always, or Reject permission requests directly from notifications
-- **Cross-platform** – Works on macOS, Linux, and Windows
+- **Actionable buttons** – Accept, Always, Reject, or Dismiss permission requests directly from notifications
+- **Cross-platform** – Works on macOS (no dependencies), Linux, and Windows
 - **Terminal focus detection** – Suppresses notifications when your terminal is already focused
 - **Quiet hours** – Optionally silence notifications during specified times
 - **Child session control** – Choose whether to notify for subagent sessions
+- **Auto-focus** – Optionally focus your terminal after responding to a notification
+- **Idle notifications** – Optionally notify when the agent stops without requesting input
 
 ## Installation
 
@@ -21,11 +23,7 @@ opencode plugin add opencode-notify
 
 #### macOS
 
-Install [alerter](https://github.com/vjeantet/alerter) for interactive notifications:
-
-```bash
-brew install alerter
-```
+No additional dependencies. The plugin bundles a native Swift app that uses CFUserNotification for alert dialogs.
 
 #### Linux
 
@@ -53,7 +51,6 @@ Create `~/.config/opencode/opencode-notify.json`:
 {
   "sounds": {
     "permission": "Submarine",
-    "complete": "Glass",
     "error": "Basso"
   },
   "quietHours": {
@@ -62,7 +59,9 @@ Create `~/.config/opencode/opencode-notify.json`:
     "end": "08:00"
   },
   "notifyChildSessions": false,
-  "terminal": null
+  "terminal": null,
+  "focusAfterAction": true,
+  "notifyOnIdle": false
 }
 ```
 
@@ -70,14 +69,15 @@ Create `~/.config/opencode/opencode-notify.json`:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sounds.permission` | string | `"Submarine"` | Sound for permission requests |
-| `sounds.complete` | string | `"Glass"` | Sound for session completion |
+| `sounds.permission` | string | `"Submarine"` | Sound for permission requests and questions |
 | `sounds.error` | string | `"Basso"` | Sound for errors |
 | `quietHours.enabled` | boolean | `false` | Enable quiet hours |
 | `quietHours.start` | string | `"22:00"` | Quiet hours start (HH:MM) |
 | `quietHours.end` | string | `"08:00"` | Quiet hours end (HH:MM) |
 | `notifyChildSessions` | boolean | `false` | Notify for subagent sessions |
 | `terminal` | string \| null | `null` | Override terminal detection |
+| `focusAfterAction` | boolean | `true` | Focus terminal after responding to a notification |
+| `notifyOnIdle` | boolean | `false` | Notify when the agent stops without requesting input |
 
 ### Terminal Detection
 
@@ -98,21 +98,21 @@ Set `terminal` in config to override if detection fails.
 
 The plugin hooks into Opencode events:
 
-1. **Permission requests** → Shows notification with Accept/Always/Reject buttons
-2. **Session idle** → Notifies when Opencode finishes and is waiting
+1. **Permission requests** → Shows notification with Accept/Always/Reject/Dismiss buttons
+2. **Questions** → Notifies when Opencode asks a question (AskUserQuestion tool) with View/Dismiss buttons
 3. **Session errors** → Notifies of errors
-4. **Questions** → Notifies when Opencode asks a question (AskUserQuestion tool)
+4. **Session idle** → Optionally notifies when the agent stops without requesting input (disabled by default, enable with `notifyOnIdle`). Only fires once per idle period – resets when the agent becomes active again.
 
 When you click a button on a permission notification, the plugin:
 1. Sends your response to Opencode via its API
-2. Focuses your terminal window
+2. Focuses your terminal window (if `focusAfterAction` is enabled)
 
 ## Comparison with Similar Plugins
 
 | Feature | mohak34/opencode-notifier | This Plugin |
 |---------|---------------------------|-------------|
 | Action buttons | No | Yes |
-| macOS notifications | osascript | alerter |
+| macOS notifications | osascript | CFUserNotification (bundled) |
 | Linux notifications | notify-send | D-Bus |
 | Windows notifications | node-notifier | powertoast |
 | Permission response | Manual in terminal | Click button |

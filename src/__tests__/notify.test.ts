@@ -40,14 +40,15 @@ describe("NotificationDispatcher", () => {
       return { action: "accept", activated: true };
     }) as typeof dispatcher.notify;
 
-    await dispatcher.showPermissionRequest("Bash", "rm -rf /tmp/test", "Submarine");
+    await dispatcher.showPermissionRequest("Bash", "rm -rf /tmp/test", "Submarine", "com.test.app");
 
     expect(capturedOptions).toEqual({
       title: "Opencode Permission Request",
       subtitle: "Bash",
       message: "rm -rf /tmp/test",
       sound: "Submarine",
-      actions: ["Accept", "Always", "Reject"],
+      actions: ["Accept", "Always", "Reject", "Dismiss"],
+      activateBundleId: "com.test.app",
     });
   });
 
@@ -76,12 +77,13 @@ describe("NotificationDispatcher", () => {
       return { action: "dismissed", activated: false };
     }) as typeof dispatcher.notify;
 
-    await dispatcher.showSessionComplete("Task finished", "Glass");
+    await dispatcher.showSessionComplete("Task finished", "Glass", "com.test.app");
 
     expect(capturedOptions).toEqual({
       title: "Opencode",
       message: "Task finished",
       sound: "Glass",
+      activateBundleId: "com.test.app",
     });
   });
 
@@ -94,12 +96,13 @@ describe("NotificationDispatcher", () => {
       return { action: "dismissed", activated: false };
     }) as typeof dispatcher.notify;
 
-    await dispatcher.showError("Something went wrong", "Basso");
+    await dispatcher.showError("Something went wrong", "Basso", "com.test.app");
 
     expect(capturedOptions).toEqual({
       title: "Opencode Error",
       message: "Something went wrong",
       sound: "Basso",
+      activateBundleId: "com.test.app",
     });
   });
 
@@ -112,12 +115,14 @@ describe("NotificationDispatcher", () => {
       return { action: "dismissed", activated: false };
     }) as typeof dispatcher.notify;
 
-    await dispatcher.showQuestion("Which approach do you prefer?", "Submarine");
+    await dispatcher.showQuestion("Which approach do you prefer?", "Submarine", "com.test.app");
 
     expect(capturedOptions).toEqual({
       title: "Opencode Question",
       message: "Which approach do you prefer?",
       sound: "Submarine",
+      actions: ["View", "Dismiss"],
+      activateBundleId: "com.test.app",
     });
   });
 });

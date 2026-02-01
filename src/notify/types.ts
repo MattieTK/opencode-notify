@@ -7,6 +7,8 @@ export interface NotificationOptions {
   sound?: string;
   actions?: string[];
   timeout?: number;
+  /** macOS bundle ID to activate when notification is clicked */
+  activateBundleId?: string;
 }
 
 export interface NotificationResult {

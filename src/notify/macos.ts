@@ -1,4 +1,4 @@
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,47 +7,32 @@ import type { Notifier, NotificationOptions, NotificationResult } from "./types"
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * macOS notifier using alerter binary.
- * alerter provides native notifications with actionable buttons.
- * https://github.com/vjeantet/alerter
+ * macOS notifier using bundled OpenCodeNotifier app.
+ * Uses CFUserNotification for native alert dialogs with action buttons.
+ * No special permissions required.
  */
 export class MacOSNotifier implements Notifier {
-  private alerterPath: string | null = null;
+  private notifierPath: string | null = null;
 
   async isAvailable(): Promise<boolean> {
-    this.alerterPath = await this.findAlerter();
-    return this.alerterPath !== null;
+    this.notifierPath = this.findNotifier();
+    return this.notifierPath !== null;
   }
 
-  private async findAlerter(): Promise<string | null> {
-    // Check bundled binary first
-    const bundledPath = join(__dirname, "..", "..", "bin", "alerter");
-    if (existsSync(bundledPath)) {
-      return bundledPath;
-    }
-
-    // Check Homebrew installation
-    try {
-      const brewPath = execSync("which alerter", {
-        encoding: "utf-8",
-        timeout: 2000,
-      }).trim();
-      if (brewPath && existsSync(brewPath)) {
-        return brewPath;
-      }
-    } catch {
-      // Not in PATH
-    }
-
-    // Check common Homebrew locations
-    const homebrewPaths = [
-      "/opt/homebrew/bin/alerter",
-      "/usr/local/bin/alerter",
+  private findNotifier(): string | null {
+    // Try multiple possible locations for the app bundle
+    const possiblePaths = [
+      // Primary: When bundled, __dirname is the dist folder where index.js lives
+      join(__dirname, "OpenCodeNotifier.app", "Contents", "MacOS", "opencode-notifier"),
+      // Fallback: One level up from dist/notify/
+      join(__dirname, "..", "OpenCodeNotifier.app", "Contents", "MacOS", "opencode-notifier"),
+      // Fallback: Two levels up
+      join(__dirname, "..", "..", "OpenCodeNotifier.app", "Contents", "MacOS", "opencode-notifier"),
     ];
 
-    for (const path of homebrewPaths) {
-      if (existsSync(path)) {
-        return path;
+    for (const binaryPath of possiblePaths) {
+      if (existsSync(binaryPath)) {
+        return binaryPath;
       }
     }
 
@@ -55,8 +40,8 @@ export class MacOSNotifier implements Notifier {
   }
 
   async notify(options: NotificationOptions): Promise<NotificationResult> {
-    if (!this.alerterPath) {
-      throw new Error("alerter binary not found");
+    if (!this.notifierPath) {
+      throw new Error("OpenCodeNotifier not found");
     }
 
     const args: string[] = [
@@ -82,67 +67,39 @@ export class MacOSNotifier implements Notifier {
       args.push("-timeout", String(options.timeout));
     }
 
-    // -json returns structured output
+    if (options.activateBundleId) {
+      args.push("-sender", options.activateBundleId);
+    }
+
     args.push("-json");
 
     return new Promise((resolve, reject) => {
-      const proc = spawn(this.alerterPath!, args, {
+      const proc = spawn(this.notifierPath!, args, {
         stdio: ["ignore", "pipe", "pipe"],
       });
 
       let stdout = "";
-      let stderr = "";
 
       proc.stdout.on("data", (data) => {
         stdout += data.toString();
       });
 
-      proc.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
-
-      proc.on("close", (code) => {
-        if (code !== 0 && code !== null) {
-          // alerter returns non-zero for some valid outcomes
-          // Parse stdout anyway
-        }
-
+      proc.on("close", () => {
         try {
           const result = JSON.parse(stdout);
           resolve({
-            action: this.normaliseAction(result.activationValue),
-            activated: result.activationType !== "timeout",
+            action: result.action ?? "dismissed",
+            activated: result.activated ?? false,
           });
         } catch {
-          // Fallback to raw output parsing
-          const trimmed = stdout.trim().toLowerCase();
           resolve({
-            action: this.normaliseAction(trimmed),
-            activated: trimmed !== "@timeout" && trimmed !== "@closed",
+            action: "dismissed",
+            activated: false,
           });
         }
       });
 
       proc.on("error", reject);
     });
-  }
-
-  private normaliseAction(value: string): string {
-    const lowered = value?.toLowerCase() ?? "";
-
-    if (lowered === "accept" || lowered === "@actionclicked") {
-      return "accept";
-    }
-    if (lowered === "always") {
-      return "always";
-    }
-    if (lowered === "reject" || lowered === "@closebutton") {
-      return "reject";
-    }
-    if (lowered === "@timeout" || lowered === "@closed") {
-      return "dismissed";
-    }
-
-    return value;
   }
 }

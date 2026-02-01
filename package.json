@@ -1,16 +1,17 @@
 {
   "name": "opencode-notify",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Native OS notifications with actionable buttons for Opencode",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
-    "bin"
+    "!dist/__tests__"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node --external powertoast --external node-dbus-notifier --external detect-terminal --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly",
+    "build": "bun build src/index.ts --outdir dist --target node --external powertoast --external node-dbus-notifier --external detect-terminal --external @opencode-ai/plugin --external @opencode-ai/sdk && tsc --emitDeclarationOnly && bun run build:native",
+    "build:native": "scripts/build-notifier.sh",
     "dev": "bun --watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

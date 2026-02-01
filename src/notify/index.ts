@@ -68,47 +68,66 @@ export class NotificationDispatcher {
   async showPermissionRequest(
     tool: string,
     command: string,
-    sound?: string
+    sound?: string,
+    activateBundleId?: string
   ): Promise<NotificationResult> {
     return this.notify({
       title: "Opencode Permission Request",
       subtitle: tool,
       message: command.length > 100 ? command.slice(0, 100) + "…" : command,
       sound,
-      actions: ["Accept", "Always", "Reject"],
+      actions: ["Accept", "Always", "Reject", "Dismiss"],
+      activateBundleId,
     });
   }
 
   /**
    * Show a session completion notification.
    */
-  async showSessionComplete(message: string, sound?: string): Promise<void> {
+  async showSessionComplete(
+    message: string,
+    sound?: string,
+    activateBundleId?: string
+  ): Promise<void> {
     await this.notify({
       title: "Opencode",
       message,
       sound,
+      activateBundleId,
     });
   }
 
   /**
    * Show an error notification.
    */
-  async showError(message: string, sound?: string): Promise<void> {
+  async showError(
+    message: string,
+    sound?: string,
+    activateBundleId?: string
+  ): Promise<void> {
     await this.notify({
       title: "Opencode Error",
       message,
       sound,
+      activateBundleId,
     });
   }
 
   /**
    * Show a question notification (from AskUserQuestion tool).
+   * Returns the result so the caller can activate the terminal.
    */
-  async showQuestion(question: string, sound?: string): Promise<void> {
-    await this.notify({
+  async showQuestion(
+    question: string,
+    sound?: string,
+    activateBundleId?: string
+  ): Promise<NotificationResult> {
+    return this.notify({
       title: "Opencode Question",
       message: question,
       sound,
+      actions: ["View", "Dismiss"],
+      activateBundleId,
     });
   }
 }
