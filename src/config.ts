@@ -20,6 +20,14 @@ export interface Config {
   terminal: string | null;
   focusAfterAction: boolean;
   notifyOnIdle: boolean;
+  /**
+   * Use macOS Notification Centre instead of modal dialogs.
+   *
+   * Trade-offs:
+   * - Native (default): Appears in Notification Centre, respects Do Not Disturb, single action button
+   * - Modal: Bypasses DND, supports Accept/Always/Reject buttons
+   */
+  nativeMacNotifications: boolean;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -36,6 +44,7 @@ const DEFAULT_CONFIG: Config = {
   terminal: null,
   focusAfterAction: true,
   notifyOnIdle: false,
+  nativeMacNotifications: true,
 };
 
 function getConfigPath(): string {

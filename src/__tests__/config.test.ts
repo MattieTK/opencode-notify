@@ -9,6 +9,7 @@ describe("isQuietHours", () => {
     terminal: null,
     focusAfterAction: true,
     notifyOnIdle: false,
+    nativeMacNotifications: true,
   };
 
   test("returns false when quiet hours disabled", () => {

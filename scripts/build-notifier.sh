@@ -44,9 +44,9 @@ cat > "$APP_DIR/Contents/Info.plist" << 'EOF'
     <key>CFBundleIdentifier</key>
     <string>dev.opencode.notifier</string>
     <key>CFBundleName</key>
-    <string>OpenCode Notifier</string>
+    <string>OpenCode Request</string>
     <key>CFBundleDisplayName</key>
-    <string>OpenCode Notifier</string>
+    <string>OpenCode Request</string>
     <key>CFBundleVersion</key>
     <string>1.0.0</string>
     <key>CFBundleShortVersionString</key>
@@ -63,8 +63,9 @@ cat > "$APP_DIR/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
-# Ad-hoc sign the app
-codesign --force --deep --sign - "$APP_DIR"
+# Skip explicit codesign - linker's automatic ad-hoc signing is sufficient
+# and explicit signing can cause issues on modern macOS
+# codesign --force --deep --sign - "$APP_DIR"
 
 # Clean up
 rm -f /tmp/opencode-notifier-arm64 /tmp/opencode-notifier-x86_64

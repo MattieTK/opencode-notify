@@ -12,6 +12,7 @@ struct NotificationArgs {
     var timeout: TimeInterval = 0
     var bundleId: String?
     var json: Bool = false
+    var native: Bool = false  // Use native Notification Centre instead of CFUserNotification
 }
 
 func parseArgs() -> NotificationArgs {
@@ -46,6 +47,8 @@ func parseArgs() -> NotificationArgs {
             if i < argv.count { args.bundleId = argv[i] }
         case "-json":
             args.json = true
+        case "-native":
+            args.native = true
         case "-help", "--help":
             printUsage()
             exit(0)
@@ -60,7 +63,7 @@ func parseArgs() -> NotificationArgs {
 
 func printUsage() {
     print("""
-    opencode-notifier - macOS alert dialogs
+    opencode-notifier - macOS notifications
 
     Usage: opencode-notifier [options]
 
@@ -69,10 +72,11 @@ func printUsage() {
       -message <string>    Alert message body
       -subtitle <string>   Alert informative text
       -sound <string>      Sound name (e.g., "default", "Ping")
-      -actions <a,b,c>     Comma-separated button labels (max 3)
+      -actions <a,b,c>     Comma-separated button labels (max 3 for dialog, 1 for native)
       -timeout <seconds>   Auto-dismiss timeout (0 = wait forever)
       -sender <bundleId>   App to activate after action
       -json                Output result as JSON
+      -native              Use Notification Centre instead of modal dialog
       -help                Show this help
 
     Exit codes:
@@ -100,6 +104,141 @@ func outputResult(action: String, activated: Bool, json: Bool) {
     fflush(stdout)
 }
 
+// MARK: - Native Notification Centre (using legacy NSUserNotificationCenter)
+//
+// NSUserNotificationCenter is deprecated but works with ad-hoc signed apps.
+// UNUserNotificationCenter requires proper Apple Developer signing.
+
+class LegacyNotificationDelegate: NSObject, NSUserNotificationCenterDelegate {
+    var args: NotificationArgs
+    var completion: ((String, Bool) -> Void)?
+    var notificationIdentifier: String?
+
+    init(args: NotificationArgs) {
+        self.args = args
+        super.init()
+    }
+
+    // Always show notification even if app is frontmost
+    func userNotificationCenter(
+        _ center: NSUserNotificationCenter,
+        shouldPresent notification: NSUserNotification
+    ) -> Bool {
+        return true
+    }
+
+    // Handle user clicking the notification
+    func userNotificationCenter(
+        _ center: NSUserNotificationCenter,
+        didActivate notification: NSUserNotification
+    ) {
+        guard notification.identifier == notificationIdentifier else { return }
+
+        switch notification.activationType {
+        case .contentsClicked:
+            // User clicked notification body
+            completion?("view", true)
+        case .actionButtonClicked:
+            // User clicked the action button
+            let action = args.actions.first?.lowercased() ?? "view"
+            completion?(action, true)
+        case .replied:
+            completion?("replied", true)
+        case .additionalActionClicked:
+            completion?("action", true)
+        case .none:
+            completion?("dismissed", false)
+        @unknown default:
+            completion?("unknown", false)
+        }
+    }
+
+    // Handle notification dismissal (user clicked close or it timed out)
+    func userNotificationCenter(
+        _ center: NSUserNotificationCenter,
+        didDeliver notification: NSUserNotification
+    ) {
+        // Notification was delivered
+    }
+}
+
+func showNativeNotification(args: NotificationArgs) {
+    let center = NSUserNotificationCenter.default
+    let delegate = LegacyNotificationDelegate(args: args)
+    center.delegate = delegate
+
+    // Create notification
+    let notification = NSUserNotification()
+    notification.identifier = UUID().uuidString
+    delegate.notificationIdentifier = notification.identifier
+    notification.title = args.title
+    notification.informativeText = args.message
+
+    if let subtitle = args.subtitle {
+        notification.subtitle = subtitle
+    }
+
+    // Add sound
+    if let sound = args.sound {
+        if sound == "default" {
+            notification.soundName = NSUserNotificationDefaultSoundName
+        } else {
+            notification.soundName = sound
+        }
+    }
+
+    // Add action button if provided
+    if !args.actions.isEmpty {
+        notification.hasActionButton = true
+        notification.actionButtonTitle = args.actions[0]
+        notification.otherButtonTitle = "Dismiss"
+    } else {
+        notification.hasActionButton = true
+        notification.actionButtonTitle = "View"
+        notification.otherButtonTitle = "Dismiss"
+    }
+
+    // Deliver notification
+    center.deliver(notification)
+
+    // Wait for user response
+    var responseReceived = false
+    delegate.completion = { action, activated in
+        outputResult(action: action, activated: activated, json: args.json)
+
+        // Activate sender app if specified and action was taken
+        if activated, let bundleId = args.bundleId {
+            activateApp(bundleId: bundleId)
+        }
+
+        responseReceived = true
+
+        // Remove the notification
+        center.removeDeliveredNotification(notification)
+
+        exit(activated ? 0 : 1)
+    }
+
+    // Run the run loop to receive delegate callbacks
+    // Timeout after specified duration or 5 minutes default
+    let timeout = args.timeout > 0 ? args.timeout : 300
+    let deadline = Date().addingTimeInterval(timeout)
+
+    while !responseReceived && Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+    }
+
+    if !responseReceived {
+        // Remove notification on timeout
+        center.removeDeliveredNotification(notification)
+        outputResult(action: "timeout", activated: false, json: args.json)
+        if let bundleId = args.bundleId {
+            activateApp(bundleId: bundleId)
+        }
+        exit(1)
+    }
+}
+
 // MARK: - Main
 
 func main() {
@@ -108,6 +247,12 @@ func main() {
     if args.message.isEmpty {
         fputs("Error: -message is required\n", stderr)
         exit(2)
+    }
+
+    // Use native Notification Centre if requested
+    if args.native {
+        showNativeNotification(args: args)
+        return
     }
 
     // Build the message with optional subtitle

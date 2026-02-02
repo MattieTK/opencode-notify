@@ -29,7 +29,11 @@ The plugin is installed automatically via Bun at startup.
 
 #### macOS
 
-No additional dependencies. The plugin bundles a Swift app that uses CFUserNotification to display alert dialogs with action buttons.
+No additional dependencies. The plugin bundles a Swift app that displays notifications.
+
+By default, the plugin uses native macOS Notification Centre banners. These appear in Notification Centre, respect Do Not Disturb, and show the app name as "OpenCode Request".
+
+Optionally, set `nativeMacNotifications: false` to use modal alert dialogs instead. Modal dialogs support multiple action buttons (Accept/Always/Reject) and bypass Do Not Disturb, but don't appear in Notification Centre.
 
 #### Linux
 
@@ -67,7 +71,8 @@ Create `~/.config/opencode/opencode-notify.json`:
   "notifyChildSessions": false,
   "terminal": null,
   "focusAfterAction": true,
-  "notifyOnIdle": false
+  "notifyOnIdle": false,
+  "nativeMacNotifications": true
 }
 ```
 
@@ -84,6 +89,7 @@ Create `~/.config/opencode/opencode-notify.json`:
 | `terminal` | string \| null | `null` | Override terminal detection |
 | `focusAfterAction` | boolean | `true` | Focus terminal after responding to a popup |
 | `notifyOnIdle` | boolean | `false` | Notify when the agent stops without requesting input |
+| `nativeMacNotifications` | boolean | `true` | Use macOS Notification Centre instead of modal dialogs (macOS only) |
 
 ### Terminal Detection
 
@@ -118,7 +124,7 @@ When you click a button on a permission popup, the plugin:
 | Feature | mohak34/opencode-notifier | This Plugin |
 |---------|---------------------------|-------------|
 | Action buttons | No | Yes |
-| macOS notifications | osascript | CFUserNotification (bundled) |
+| macOS notifications | osascript | CFUserNotification or Notification Centre |
 | Linux notifications | notify-send | D-Bus |
 | Windows notifications | node-notifier | powertoast |
 | Permission response | Manual in terminal | Click button |

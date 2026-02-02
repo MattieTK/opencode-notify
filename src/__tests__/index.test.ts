@@ -16,13 +16,37 @@ function createMockInput(overrides?: Partial<PluginInput>): PluginInput {
 }
 
 describe("opencodeNotifyPlugin", () => {
-  test("returns hooks object with event handler", async () => {
+  test("returns hooks object with event handler and permission.ask hook", async () => {
     const input = createMockInput();
     const hooks = await opencodeNotifyPlugin(input);
 
     expect(hooks).toBeDefined();
     expect(typeof hooks.event).toBe("function");
     expect(typeof hooks["tool.execute.before"]).toBe("function");
+    expect(typeof hooks["permission.ask"]).toBe("function");
+  });
+
+  test("permission.ask hook processes permission requests", async () => {
+    const input = createMockInput();
+    const hooks = await opencodeNotifyPlugin(input);
+
+    const permissionInput = {
+      id: "test-id",
+      type: "Bash",
+      pattern: "run command",
+      sessionID: "session-1",
+      messageID: "msg-1",
+      title: "Run command",
+      metadata: {},
+      time: { created: Date.now() },
+    };
+
+    const output = { status: "ask" as "ask" | "deny" | "allow" };
+
+    // Should not throw when processing permission request
+    await expect(
+      hooks["permission.ask"]?.(permissionInput, output)
+    ).resolves.toBeUndefined();
   });
 
   test("event handler processes permission.updated events", async () => {

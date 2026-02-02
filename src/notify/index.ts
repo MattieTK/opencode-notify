@@ -1,5 +1,7 @@
 import type { Notifier, NotificationOptions, NotificationResult } from "./types";
+import type { Config } from "../config";
 import { MacOSNotifier } from "./macos";
+import { MacOSNativeNotifier } from "./macos-native";
 import { LinuxNotifier } from "./linux";
 import { WindowsNotifier } from "./windows";
 
@@ -12,16 +14,28 @@ export type { NotificationOptions, NotificationResult, NotificationAction } from
 export class NotificationDispatcher {
   private notifier: Notifier | null = null;
   private initialised = false;
+  private config: Config | null = null;
 
-  async initialise(): Promise<boolean> {
+  async initialise(config?: Config): Promise<boolean> {
     if (this.initialised) {
       return this.notifier !== null;
     }
 
     this.initialised = true;
+    this.config = config ?? null;
     const platform = process.platform;
 
     if (platform === "darwin") {
+      // Try native notifications first if configured
+      if (this.config?.nativeMacNotifications) {
+        const native = new MacOSNativeNotifier();
+        if (await native.isAvailable()) {
+          this.notifier = native;
+          return true;
+        }
+        // Fall through to CFUserNotification if node-notifier unavailable
+      }
+
       const macos = new MacOSNotifier();
       if (await macos.isAvailable()) {
         this.notifier = macos;
