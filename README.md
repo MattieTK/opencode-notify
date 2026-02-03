@@ -19,7 +19,7 @@ Add the plugin to your Opencode configuration file (`~/.config/opencode/config.j
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["opencode-notify"]
+  "plugin": ["opencode-notify"]
 }
 ```
 
