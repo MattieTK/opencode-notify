@@ -4,6 +4,10 @@ import { detectTerminal } from "../terminal";
 describe("detectTerminal", () => {
   const originalEnv = { ...process.env };
 
+  beforeEach(() => {
+    delete process.env.KITTY_WINDOW_ID;
+  });
+
   afterEach(() => {
     // Restore original environment
     process.env = { ...originalEnv };

@@ -77,7 +77,8 @@ export class NotificationDispatcher {
   }
 
   /**
-   * Show a permission request notification with Accept/Always/Reject buttons.
+   * Show a permission request notification with Accept/Reject/Dismiss buttons
+   * (or Accept/Reject/Focus when focusAfterAction is false).
    */
   async showPermissionRequest(
     tool: string,
@@ -85,12 +86,17 @@ export class NotificationDispatcher {
     sound?: string,
     activateBundleId?: string
   ): Promise<NotificationResult> {
+    const actions =
+      this.config?.focusAfterAction === false
+        ? ["Accept", "Reject", "Focus"]
+        : ["Accept", "Reject", "Dismiss"];
+
     return this.notify({
       title: "Opencode Permission Request",
       subtitle: tool,
       message: command.length > 100 ? command.slice(0, 100) + "…" : command,
       sound,
-      actions: ["Accept", "Always", "Reject", "Dismiss"],
+      actions,
       activateBundleId,
     });
   }
@@ -102,11 +108,17 @@ export class NotificationDispatcher {
     message: string,
     sound?: string,
     activateBundleId?: string
-  ): Promise<void> {
-    await this.notify({
+  ): Promise<NotificationResult> {
+    const actions =
+      this.config?.focusAfterAction === false
+        ? ["Focus", "Dismiss"]
+        : undefined;
+
+    return this.notify({
       title: "Opencode",
       message,
       sound,
+      actions,
       activateBundleId,
     });
   }
@@ -118,11 +130,17 @@ export class NotificationDispatcher {
     message: string,
     sound?: string,
     activateBundleId?: string
-  ): Promise<void> {
-    await this.notify({
+  ): Promise<NotificationResult> {
+    const actions =
+      this.config?.focusAfterAction === false
+        ? ["Focus", "Dismiss"]
+        : undefined;
+
+    return this.notify({
       title: "Opencode Error",
       message,
       sound,
+      actions,
       activateBundleId,
     });
   }
@@ -136,11 +154,16 @@ export class NotificationDispatcher {
     sound?: string,
     activateBundleId?: string
   ): Promise<NotificationResult> {
+    const actions =
+      this.config?.focusAfterAction === false
+        ? ["Focus", "Dismiss"]
+        : ["View", "Dismiss"];
+
     return this.notify({
       title: "Opencode Question",
       message: question,
       sound,
-      actions: ["View", "Dismiss"],
+      actions,
       activateBundleId,
     });
   }
