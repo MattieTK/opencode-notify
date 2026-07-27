@@ -109,11 +109,12 @@ export const opencodeNotifyPlugin: Plugin = async ({ client }) => {
         }
         // For "dismissed" or unknown, leave status as "ask" (default)
 
-        // Focus terminal if config allows and action was approved
+        // Focus terminal if user explicitly clicked "Focus" or if focusAfterAction is enabled
         if (
-          result.activated &&
-          config.focusAfterAction &&
-          (action === "accept" || action === "always")
+          action === "focus" ||
+          (result.activated &&
+            config.focusAfterAction &&
+            (action === "accept" || action === "always"))
         ) {
           focusTerminal(terminal);
         }
@@ -208,9 +209,11 @@ export const opencodeNotifyPlugin: Plugin = async ({ client }) => {
             }
           }
 
-          // Focus terminal if config allows and action was not dismiss
-          // "view" means user clicked notification body to open terminal
-          if (result.activated && config.focusAfterAction && action !== "dismissed") {
+          // Focus terminal if user clicked Focus or if config allows and action was not dismiss
+          if (
+            action === "focus" ||
+            (result.activated && config.focusAfterAction && action !== "dismissed")
+          ) {
             focusTerminal(terminal);
           }
         } catch (err) {
@@ -283,8 +286,11 @@ export const opencodeNotifyPlugin: Plugin = async ({ client }) => {
 
               log(` Question result: action=${result.action}, activated=${result.activated}`);
 
-              // Focus terminal if config allows and action was not dismiss
-              if (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss") {
+              // Focus terminal if user clicked Focus or if config allows and action was not dismiss
+              if (
+                result.action.toLowerCase() === "focus" ||
+                (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss")
+              ) {
                 focusTerminal(terminal);
               }
             } finally {
@@ -448,11 +454,17 @@ export const opencodeNotifyPlugin: Plugin = async ({ client }) => {
           // Extract message from the error union type
           const errorData = props.error?.data as { message?: string } | undefined;
           const message = errorData?.message ?? "An error occurred";
-          await dispatcher.showError(
+          const result = await dispatcher.showError(
             message,
             config.sounds.error,
             terminal.bundleId
           );
+          if (
+            result.action.toLowerCase() === "focus" ||
+            (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss")
+          ) {
+            focusTerminal(terminal);
+          }
           break;
         }
 
@@ -474,11 +486,17 @@ export const opencodeNotifyPlugin: Plugin = async ({ client }) => {
           }
 
           hasNotifiedIdle = true;
-          await dispatcher.showSessionComplete(
+          const result = await dispatcher.showSessionComplete(
             "Agent has stopped and is waiting for input",
             config.sounds.permission,
             terminal.bundleId
           );
+          if (
+            result.action.toLowerCase() === "focus" ||
+            (result.activated && config.focusAfterAction && result.action.toLowerCase() !== "dismiss")
+          ) {
+            focusTerminal(terminal);
+          }
           break;
         }
       }

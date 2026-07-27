@@ -30,11 +30,10 @@ describe("NotificationDispatcher", () => {
     expect(result.activated).toBe(false);
   });
 
-  test("showPermissionRequest builds correct options", async () => {
+  test("showPermissionRequest builds correct options in default mode", async () => {
     const dispatcher = new NotificationDispatcher();
     let capturedOptions: unknown = null;
 
-    // Mock the notify method
     dispatcher.notify = mock(async (options) => {
       capturedOptions = options;
       return { action: "accept", activated: true };
@@ -47,7 +46,31 @@ describe("NotificationDispatcher", () => {
       subtitle: "Bash",
       message: "rm -rf /tmp/test",
       sound: "Submarine",
-      actions: ["Accept", "Always", "Reject", "Dismiss"],
+      actions: ["Accept", "Reject", "Dismiss"],
+      activateBundleId: "com.test.app",
+    });
+  });
+
+  test("showPermissionRequest builds correct options when focusAfterAction is false", async () => {
+    const dispatcher = new NotificationDispatcher();
+    (dispatcher as unknown as { config: { focusAfterAction: boolean } }).config = {
+      focusAfterAction: false,
+    };
+    let capturedOptions: unknown = null;
+
+    dispatcher.notify = mock(async (options) => {
+      capturedOptions = options;
+      return { action: "accept", activated: true };
+    }) as typeof dispatcher.notify;
+
+    await dispatcher.showPermissionRequest("Bash", "rm -rf /tmp/test", "Submarine", "com.test.app");
+
+    expect(capturedOptions).toEqual({
+      title: "Opencode Permission Request",
+      subtitle: "Bash",
+      message: "rm -rf /tmp/test",
+      sound: "Submarine",
+      actions: ["Accept", "Reject", "Focus"],
       activateBundleId: "com.test.app",
     });
   });
@@ -83,6 +106,30 @@ describe("NotificationDispatcher", () => {
       title: "Opencode",
       message: "Task finished",
       sound: "Glass",
+      actions: undefined,
+      activateBundleId: "com.test.app",
+    });
+  });
+
+  test("showSessionComplete builds Focus button when focusAfterAction is false", async () => {
+    const dispatcher = new NotificationDispatcher();
+    (dispatcher as unknown as { config: { focusAfterAction: boolean } }).config = {
+      focusAfterAction: false,
+    };
+    let capturedOptions: unknown = null;
+
+    dispatcher.notify = mock(async (options) => {
+      capturedOptions = options;
+      return { action: "dismissed", activated: false };
+    }) as typeof dispatcher.notify;
+
+    await dispatcher.showSessionComplete("Task finished", "Glass", "com.test.app");
+
+    expect(capturedOptions).toEqual({
+      title: "Opencode",
+      message: "Task finished",
+      sound: "Glass",
+      actions: ["Focus", "Dismiss"],
       activateBundleId: "com.test.app",
     });
   });
@@ -102,6 +149,7 @@ describe("NotificationDispatcher", () => {
       title: "Opencode Error",
       message: "Something went wrong",
       sound: "Basso",
+      actions: undefined,
       activateBundleId: "com.test.app",
     });
   });
@@ -122,6 +170,29 @@ describe("NotificationDispatcher", () => {
       message: "Which approach do you prefer?",
       sound: "Submarine",
       actions: ["View", "Dismiss"],
+      activateBundleId: "com.test.app",
+    });
+  });
+
+  test("showQuestion builds Focus button when focusAfterAction is false", async () => {
+    const dispatcher = new NotificationDispatcher();
+    (dispatcher as unknown as { config: { focusAfterAction: boolean } }).config = {
+      focusAfterAction: false,
+    };
+    let capturedOptions: unknown = null;
+
+    dispatcher.notify = mock(async (options) => {
+      capturedOptions = options;
+      return { action: "dismissed", activated: false };
+    }) as typeof dispatcher.notify;
+
+    await dispatcher.showQuestion("Which approach do you prefer?", "Submarine", "com.test.app");
+
+    expect(capturedOptions).toEqual({
+      title: "Opencode Question",
+      message: "Which approach do you prefer?",
+      sound: "Submarine",
+      actions: ["Focus", "Dismiss"],
       activateBundleId: "com.test.app",
     });
   });

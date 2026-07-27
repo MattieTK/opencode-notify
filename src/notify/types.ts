@@ -1,4 +1,4 @@
-export type NotificationAction = "accept" | "always" | "reject" | "dismissed";
+export type NotificationAction = "accept" | "always" | "reject" | "focus" | "dismissed";
 
 export interface NotificationOptions {
   title: string;
